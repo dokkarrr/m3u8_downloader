@@ -1,6 +1,3 @@
-#EXTM3U
-#EXTVLCOPT:http-referrer=https://megaup.cc/
-#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles1",NAME="English (AI)",DEFAULT=YES,URI="https://lgv.megaup.cc/v5/bHKUod1G9wxOlygxw45VftX1_uqFvh2aLh9Jm3hAeY2F8Yqh1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9V1Iuaqk6odDcZ8y0V/subs/ai_eng_3.vtt"
+
 #EXTINF:-1,One Piece - 001 - I'm Luffy! The Man Who's Gonna Be King of the Pirates!.m3u8 [Dub & S-Sub - Server 2]
 https://rrr.app28base.site/pmjz/c6/h1ca5287751bdc312a5ca0c70e7955fb57d7fbaa16f87669f878672de51466f776f6aa875cf0d45b4a84ed386bf9e3c779066abf2dbeb298c6c334f18f02605b808cd894dc97b1197a079f69cef/list,WuxrIQT2oR6y.m3u8
-#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles2",NAME="English (AI)",DEFAULT=YES,URI="https://e28.megaup.cc/v5/bHKUod1G9wxOlygxw5IkQp3gn5KY-k2nBycxohUcINCB8bPRnxlFKs6xGkJG5nmAq3XD-sJPhId4rdRcHsHtX6xPOmkzQfAaSvnDzn_B7iLZ-CAnOyAaD9ScE1s-M6UaqciMcrWAV4A/subs/ai_eng_3.vtt"
