@@ -14,11 +14,14 @@ on:
       workers:
         description: "Concurrent segment download threads"
         required: false
-        default: "4"
+        default: "2"
 
   push:
     paths:
       - "progress.json"
+
+permissions:
+  contents: write
 
 jobs:
   download:
@@ -150,18 +153,23 @@ jobs:
       - name: Commit progress.json back to repo
         if: always()
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add progress.json
+
           if git diff --cached --quiet; then
             echo "progress.json unchanged - nothing to commit."
             exit 0
           fi
+
           DONE=$(python3 -c "import json,pathlib; d=json.loads(pathlib.Path('progress.json').read_text()); print(len(d.get('completed_urls',[])))" 2>/dev/null || echo "0")
           REM=$(python3 -c "import json,pathlib; d=json.loads(pathlib.Path('progress.json').read_text()); print(d.get('remaining_count',0))" 2>/dev/null || echo "0")
           TIMEDOUT=$(python3 -c "import json,pathlib; d=json.loads(pathlib.Path('progress.json').read_text()); print(d.get('timed_out',False))" 2>/dev/null || echo "False")
           ALLDONE=$(python3 -c "import json,pathlib; d=json.loads(pathlib.Path('progress.json').read_text()); print(d.get('completed',False))" 2>/dev/null || echo "False")
+
           TOTAL=$((DONE + REM))
+
           if [ "$ALLDONE" = "True" ]; then
             MSG="chore: ALL DONE ${DONE}/${TOTAL} [run #${{ github.run_number }}]"
           elif [ "$TIMEDOUT" = "True" ]; then
@@ -169,7 +177,11 @@ jobs:
           else
             MSG="chore: progress ${DONE}/${TOTAL} [run #${{ github.run_number }}]"
           fi
+
           git pull --rebase origin ${{ github.ref_name }} 2>/dev/null || true
+
           git commit -m "$MSG"
-          git push
+
+          git push origin HEAD:${{ github.ref_name }}
+
           echo "progress.json pushed"
