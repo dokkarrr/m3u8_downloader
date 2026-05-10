@@ -1,1 +1,13 @@
-
+{
+  "playlist_file": "m3u8files.txt",
+  "quality": "best",
+  "completed_urls": [
+    "https://rrr.app28base.site/pmjz/c6/h1ca5287751bdc312a5ca0c70e7955fb57d7fbaa16f87669f878672de51466f776f6aa875cf0d45b4a84ed386bf9e3c779066abf2dbeb298c6c334f18f02605b808cd894dc97b1197a079f69cef/list,WuxrIQT2oR6y.m3u8"
+  ],
+  "failed_urls": [],
+  "total_runs": 1,
+  "last_run": "2026-05-10T16:22:33.839016+00:00",
+  "completed": true,
+  "remaining_count": 0,
+  "timed_out": false
+}
