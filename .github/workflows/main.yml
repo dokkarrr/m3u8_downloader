@@ -1,7 +1,6 @@
 name: M3U8 Batch Downloader
 
 on:
-  # Manual trigger with inputs
   workflow_dispatch:
     inputs:
       playlist_file:
@@ -17,144 +16,433 @@ on:
         required: false
         default: "4"
 
-  # Also trigger automatically when any .txt file in root changes
+  # Auto-retrigger: when progress.json is committed back, this fires the next run
   push:
     paths:
-      - "*.txt"
+      - "progress.json"
 
 jobs:
   download:
     runs-on: ubuntu-latest
-    timeout-minutes: 360       # 6-hour cap — adjust if your batch is longer
+    timeout-minutes: 349       # 5h 49m hard cap (GitHub max is 6h)
 
     steps:
-      # ── 1. Checkout repo ────────────────────────────────────────────────────
+      # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 2. Set up Python ────────────────────────────────────────────────────
+      # ── 2. Python ──────────────────────────────────────────────────────────
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      # ── 3. Install FFmpeg ────────────────────────────────────────────────────
+      # ── 3. FFmpeg ──────────────────────────────────────────────────────────
       - name: Install FFmpeg
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg
           ffmpeg -version | head -1
 
-      # ── 4. Install Python dependencies ──────────────────────────────────────
+      # ── 4. Dependencies ────────────────────────────────────────────────────
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          pip install requests pycryptodome
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install requests pycryptodome
+          fi
 
-      # ── 5. Detect .py script automatically (no filename hardcoded) ──────────
+      # ── 5. Detect .py script (no filename hardcoded) ───────────────────────
       - name: Detect downloader script
         id: detect_script
         run: |
-          # Find the first .py file in the repo root (ignores __init__.py etc.)
-          SCRIPT=$(find . -maxdepth 1 -name "*.py" ! -name "__init__.py" | sort | head -1)
-
+          SCRIPT=$(find . -maxdepth 1 -name "*.py" \
+            ! -name "__init__.py" \
+            ! -name "resume_runner.py" \
+            | sort | head -1)
           if [ -z "$SCRIPT" ]; then
-            echo "❌ No .py file found in repository root."
+            echo "❌ No .py file found in repo root."
             exit 1
           fi
-
-          echo "✅ Detected script: $SCRIPT"
+          echo "✅ Script: $SCRIPT"
           echo "script=$SCRIPT" >> "$GITHUB_OUTPUT"
 
-      # ── 6. Detect .txt playlist file ─────────────────────────────────────────
-      - name: Detect playlist .txt file
+      # ── 6. Detect .txt playlist ────────────────────────────────────────────
+      - name: Detect playlist file
         id: detect_playlist
         run: |
-          # Priority 1: use the manually provided input (workflow_dispatch)
-          MANUAL_INPUT="${{ github.event.inputs.playlist_file }}"
-
-          if [ -n "$MANUAL_INPUT" ] && [ -f "$MANUAL_INPUT" ]; then
-            echo "✅ Using manually specified playlist: $MANUAL_INPUT"
-            echo "playlist=$MANUAL_INPUT" >> "$GITHUB_OUTPUT"
+          # Priority 1 — manual input from workflow_dispatch
+          MANUAL="${{ github.event.inputs.playlist_file }}"
+          if [ -n "$MANUAL" ] && [ -f "$MANUAL" ]; then
+            echo "✅ Using manual input: $MANUAL"
+            echo "playlist=$MANUAL" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Priority 2: auto-detect — pick the first .txt in repo root
-          TXT=$(find . -maxdepth 1 -name "*.txt" | sort | head -1)
-
-          if [ -z "$TXT" ]; then
-            echo "❌ No .txt playlist file found in repository root."
-            exit 1
+          # Priority 2 — read from progress.json (auto-retrigger runs)
+          if [ -f progress.json ]; then
+            SAVED=$(python3 -c \
+              "import json; d=json.load(open('progress.json')); print(d.get('playlist_file',''))" \
+              2>/dev/null)
+            if [ -n "$SAVED" ] && [ -f "$SAVED" ]; then
+              echo "✅ Resuming playlist from progress.json: $SAVED"
+              echo "playlist=$SAVED" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
-          # Strip leading ./
+          # Priority 3 — auto-detect first .txt in root
+          TXT=$(find . -maxdepth 1 -name "*.txt" ! -name "requirements.txt" \
+            | sort | head -1)
+          if [ -z "$TXT" ]; then
+            echo "❌ No .txt playlist found in repo root."
+            exit 1
+          fi
           TXT="${TXT#./}"
-          echo "✅ Auto-detected playlist: $TXT"
+          echo "✅ Auto-detected: $TXT"
           echo "playlist=$TXT" >> "$GITHUB_OUTPUT"
 
-      # ── 7. Show playlist preview ─────────────────────────────────────────────
-      - name: Preview playlist file
+      # ── 7. Show status before run ──────────────────────────────────────────
+      - name: Show current progress status
         run: |
-          PLAYLIST="${{ steps.detect_playlist.outputs.playlist }}"
-          echo "──────────────── Playlist: $PLAYLIST ────────────────"
-          head -40 "$PLAYLIST" || true
-          echo "──────────────────────────────────────────────────────"
-          TOTAL=$(grep -c "^https\?://" "$PLAYLIST" 2>/dev/null || echo "?")
-          echo "URLs found: $TOTAL"
+          P="${{ steps.detect_playlist.outputs.playlist }}"
+          TOTAL=$(grep -c "https://" "$P" 2>/dev/null || echo "?")
+          echo "Playlist : $P  (≈$TOTAL URLs)"
+          if [ -f progress.json ]; then
+            python3 - <<'EOF'
+          import json
+          d = json.load(open("progress.json"))
+          done  = len(d.get("completed_urls", []))
+          fail  = len(d.get("failed_urls", []))
+          runs  = d.get("total_runs", 0)
+          rem   = d.get("remaining_count", "?")
+          print(f"  ✅ Completed : {done}")
+          print(f"  ❌ Failed    : {fail}")
+          print(f"  🕐 Remaining : {rem}")
+          print(f"  🔁 Runs so far: {runs}")
+          EOF
+          else
+            echo "  No progress.json — fresh start"
+          fi
 
-      # ── 8. Patch playlist path & run downloader ───────────────────────────────
-      - name: Run downloader
+      # ── 8. Write resume_runner.py ──────────────────────────────────────────
+      - name: Write resume_runner.py
+        run: |
+          cat > resume_runner.py << 'PYEOF'
+#!/usr/bin/env python3
+"""
+Resume-aware wrapper.
+
+Reads  : progress.json  (set of already-completed URLs)
+Writes : progress.json  (updated after every episode)
+Stops  : when TIME_LIMIT_SECONDS is near, saves state cleanly
+Exit   : 0 = all done, 1 = errors, 2 = timed-out (needs next run)
+"""
+import os, re, sys, json, time, subprocess
+from pathlib import Path
+from datetime import datetime, timezone
+
+PLAYLIST_FILE       = os.environ["PLAYLIST"]
+OUTPUT_DIR          = os.environ.get("OUTPUT_DIR", "downloads")
+QUALITY             = os.environ.get("QUALITY", "best")
+WORKERS             = os.environ.get("WORKERS", "4")
+SCRIPT              = os.environ["SCRIPT"]
+PROGRESS_FILE       = "progress.json"
+# 345 min = 5h 45m → leaves 4 min to commit progress.json before job dies
+TIME_LIMIT_SECONDS  = int(os.environ.get("TIME_LIMIT_SECONDS", str(345 * 60)))
+
+# ── progress helpers ───────────────────────────────────────────────────────
+def load_progress():
+    if Path(PROGRESS_FILE).exists():
+        try:
+            return json.loads(Path(PROGRESS_FILE).read_text())
+        except Exception:
+            pass
+    return {
+        "playlist_file": PLAYLIST_FILE,
+        "quality": QUALITY,
+        "completed_urls": [],
+        "failed_urls": [],
+        "total_runs": 0,
+        "last_run": None,
+        "completed": False,
+    }
+
+def save_progress(state: dict):
+    state["last_run"] = datetime.now(timezone.utc).isoformat()
+    Path(PROGRESS_FILE).write_text(json.dumps(state, indent=2))
+    print(f"\n  💾  Progress saved → {PROGRESS_FILE}  "
+          f"({len(state['completed_urls'])} done)")
+
+# ── playlist parser ────────────────────────────────────────────────────────
+def parse_urls(filepath: str):
+    """Returns ordered list of (raw_title, url)."""
+    raw = Path(filepath).read_text(encoding="utf-8", errors="replace")
+    norm = re.sub(r'\s+#', '\n#', raw)
+    norm = re.sub(r'(https?://\S+)', r'\n\1', norm)
+    lines = [l.strip() for l in norm.splitlines() if l.strip()]
+    entries, current_title = [], None
+    for line in lines:
+        if line.startswith("#EXTINF"):
+            current_title = line.split(",", 1)[1].strip() if "," in line else line
+        elif re.match(r'https?://', line) and ".m3u8" in line:
+            entries.append((current_title or f"episode_{len(entries)+1:03d}", line))
+            current_title = None
+    return entries
+
+def clean_title(raw: str) -> str:
+    t = re.sub(r'\s*[\[\(][^\]\)]*[\]\)]', '', raw)
+    t = re.sub(r'\.m3u8\s*$', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'\s+', ' ', t).strip()
+    t = re.sub(r'[\\/:*?"<>|]', '', t)
+    return t or "episode"
+
+# ── main ───────────────────────────────────────────────────────────────────
+def main():
+    start_time = time.time()
+    state = load_progress()
+    state["total_runs"]    = state.get("total_runs", 0) + 1
+    state["playlist_file"] = PLAYLIST_FILE
+    state["quality"]       = QUALITY
+
+    completed_urls = set(state.get("completed_urls", []))
+    failed_urls    = set(state.get("failed_urls", []))
+
+    all_entries = parse_urls(PLAYLIST_FILE)
+    total       = len(all_entries)
+
+    # Episodes not yet done (preserve original order)
+    pending = [(t, u) for t, u in all_entries if u not in completed_urls]
+
+    print(f"\n  📂  Playlist       : {PLAYLIST_FILE}")
+    print(f"  📋  Total URLs     : {total}")
+    print(f"  ✅  Already done   : {len(completed_urls)}")
+    print(f"  ⏭️   This run queue : {len(pending)}")
+    print(f"  ⏱️   Time budget    : {TIME_LIMIT_SECONDS//60} min\n")
+
+    if not pending:
+        print("  🎉  All episodes already downloaded!")
+        state["completed"] = True
+        state["remaining_count"] = 0
+        save_progress(state)
+        return 0
+
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    timed_out    = False
+    this_done    = 0
+    this_failed  = 0
+
+    for idx, (raw_title, url) in enumerate(pending):
+        elapsed   = time.time() - start_time
+        remaining = TIME_LIMIT_SECONDS - elapsed
+
+        # Need at least 90 s to attempt an episode + save progress
+        if remaining < 90:
+            print(f"\n  ⏰  Only {remaining:.0f}s left — stopping safely")
+            print(f"  ⏸️   Paused at queue item {idx+1}/{len(pending)}")
+            timed_out = True
+            break
+
+        title   = clean_title(raw_title)
+        out_mp4 = Path(OUTPUT_DIR) / f"{title}.mp4"
+        out_ts  = Path(OUTPUT_DIR) / f"{title}.ts"
+
+        # Skip if already on disk
+        if (out_mp4.exists() and out_mp4.stat().st_size > 1000) or \
+           (out_ts.exists()  and out_ts.stat().st_size  > 1000):
+            print(f"  ⏭️  File on disk, marking done: {title}")
+            completed_urls.add(url)
+            state["completed_urls"] = list(completed_urls)
+            save_progress(state)
+            continue
+
+        overall = all_entries.index((raw_title, url)) + 1
+        print("=" * 68)
+        print(f"  🎬  [{overall}/{total}]  {title}")
+        print(f"  🔗  {url[:72]}")
+        print(f"  ⏱️   Elapsed {elapsed/60:.1f}min | Remaining {remaining/60:.1f}min")
+        print("=" * 68)
+
+        cmd = [
+            sys.executable, SCRIPT,
+            url,
+            "-o", str(out_mp4),
+            "-w", WORKERS,
+            "-q", QUALITY,
+            "--retries", "5",
+            "--report",
+        ]
+
+        try:
+            # Allow up to (remaining - 60 s) for a single episode
+            result = subprocess.run(cmd, timeout=max(remaining - 60, 30))
+            if result.returncode == 0:
+                completed_urls.add(url)
+                this_done += 1
+                print(f"\n  ✅  Done: {title}")
+            else:
+                failed_urls.add(url)
+                this_failed += 1
+                print(f"\n  ❌  Failed (exit {result.returncode}): {title}")
+        except subprocess.TimeoutExpired:
+            print(f"\n  ⏰  Episode timed out: {title}")
+            failed_urls.add(url)
+            this_failed += 1
+            timed_out = True
+        except Exception as e:
+            print(f"\n  ❌  Error: {e}")
+            failed_urls.add(url)
+            this_failed += 1
+
+        remaining_count = total - len(completed_urls)
+        state["completed_urls"]  = list(completed_urls)
+        state["failed_urls"]     = list(failed_urls)
+        state["remaining_count"] = remaining_count
+        state["completed"]       = (remaining_count == 0)
+        state["timed_out"]       = timed_out
+        save_progress(state)
+
+        if timed_out:
+            break
+
+    # ── final state ────────────────────────────────────────────────────────
+    remaining_count = total - len(completed_urls)
+    state["completed_urls"]  = list(completed_urls)
+    state["failed_urls"]     = list(failed_urls)
+    state["remaining_count"] = remaining_count
+    state["completed"]       = (remaining_count == 0 and not timed_out)
+    state["timed_out"]       = timed_out
+    save_progress(state)
+
+    elapsed_total = time.time() - start_time
+    print("\n" + "=" * 68)
+    print("  📊  SESSION SUMMARY")
+    print("=" * 68)
+    print(f"  ✅  Done this run  : {this_done}")
+    print(f"  ❌  Failed this run: {this_failed}")
+    print(f"  📦  Total done     : {len(completed_urls)}/{total}")
+    print(f"  🕐  Still pending  : {remaining_count}")
+    print(f"  ⏱️   Time used      : {elapsed_total/60:.1f} min")
+    if timed_out and remaining_count > 0:
+        print(f"\n  🔄  Auto-resuming next run for {remaining_count} episode(s)…")
+    elif state["completed"]:
+        print("\n  🎉  ALL EPISODES COMPLETE!")
+    print()
+
+    if timed_out and remaining_count > 0:
+        return 2       # signals workflow: timed out, needs next run
+    elif failed_urls:
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+PYEOF
+          echo "✅ resume_runner.py written"
+
+      # ── 9. Run ────────────────────────────────────────────────────────────
+      - name: Run downloader (resume-aware)
+        id: run_dl
         env:
-          PLAYLIST:  ${{ steps.detect_playlist.outputs.playlist }}
-          SCRIPT:    ${{ steps.detect_script.outputs.script }}
-          QUALITY:   ${{ github.event.inputs.quality || 'best' }}
-          WORKERS:   ${{ github.event.inputs.workers || '4' }}
-          OUTPUT_DIR: downloads
+          PLAYLIST:             ${{ steps.detect_playlist.outputs.playlist }}
+          SCRIPT:               ${{ steps.detect_script.outputs.script }}
+          QUALITY:              ${{ github.event.inputs.quality || 'best' }}
+          WORKERS:              ${{ github.event.inputs.workers || '4' }}
+          OUTPUT_DIR:           downloads
+          TIME_LIMIT_SECONDS:   "20700"    # 345 min = 5h 45m
         run: |
-          echo "▶ Script   : $SCRIPT"
-          echo "▶ Playlist : $PLAYLIST"
-          echo "▶ Quality  : $QUALITY"
-          echo "▶ Workers  : $WORKERS"
-          echo "▶ Out dir  : $OUTPUT_DIR"
-          mkdir -p "$OUTPUT_DIR"
+          python3 resume_runner.py
+          EXIT=$?
+          echo "runner_exit=$EXIT" >> "$GITHUB_OUTPUT"
+          # Exit 2 = timed out but not an error — mark step as success
+          if [ $EXIT -eq 2 ]; then
+            echo "⏸️  Timed out cleanly — next run will auto-trigger via progress.json push"
+            exit 0
+          fi
+          exit $EXIT
+        continue-on-error: false
 
-          # Run using CLI flags so we never touch the hardcoded paths inside the script
-          python "$SCRIPT" \
-            --playlist-file "$PLAYLIST" \
-            --output-dir    "$OUTPUT_DIR" \
-            --quality       "$QUALITY" \
-            --workers       "$WORKERS" \
-            --retries       5 \
-            --report
-
-      # ── 9. List downloaded files ──────────────────────────────────────────────
-      - name: List output files
+      # ── 10. List downloads ─────────────────────────────────────────────────
+      - name: List downloaded files
         if: always()
         run: |
-          echo "──────────────── Downloaded files ────────────────"
+          echo "──────────── downloads/ ────────────"
           find downloads -type f \( -name "*.mp4" -o -name "*.ts" \) \
-            -exec ls -lh {} \; 2>/dev/null || echo "(none)"
+            -exec ls -lh {} \; 2>/dev/null | sort || echo "(none yet)"
 
-      # ── 10. Upload downloads as artifact ──────────────────────────────────────
+      # ── 11. Upload video artifacts ─────────────────────────────────────────
       - name: Upload downloaded videos
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: downloaded-episodes-${{ github.run_number }}
+          name: episodes-run-${{ github.run_number }}
           path: |
             downloads/*.mp4
             downloads/*.ts
-            downloads/*.json
-          retention-days: 7        # GitHub keeps artifacts 7 days (free tier)
+          retention-days: 7
           if-no-files-found: warn
 
-      # ── 11. Upload JSON reports ───────────────────────────────────────────────
-      - name: Upload download reports
+      - name: Upload JSON reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: download-reports-${{ github.run_number }}
+          name: reports-run-${{ github.run_number }}
           path: downloads/*.json
           retention-days: 30
           if-no-files-found: ignore
+
+      # ── 12. Commit progress.json back → triggers next run ──────────────────
+      - name: Commit progress.json (triggers next run if timed out)
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add progress.json
+
+          if git diff --cached --quiet; then
+            echo "ℹ️  progress.json unchanged — no commit needed."
+            exit 0
+          fi
+
+          # Build a clear commit message
+          DONE=$(python3 -c \
+            "import json; d=json.load(open('progress.json')); \
+             print(len(d.get('completed_urls',[])))" 2>/dev/null || echo "?")
+          TOTAL=$(python3 -c \
+            "import json; d=json.load(open('progress.json')); \
+             done=len(d.get('completed_urls',[])); \
+             rem=d.get('remaining_count',0); print(done+rem)" 2>/dev/null || echo "?")
+          TIMEDOUT=$(python3 -c \
+            "import json; d=json.load(open('progress.json')); \
+             print(d.get('timed_out', False))" 2>/dev/null || echo "False")
+          ALL_DONE=$(python3 -c \
+            "import json; d=json.load(open('progress.json')); \
+             print(d.get('completed', False))" 2>/dev/null || echo "False")
+
+          if [ "$ALL_DONE" = "True" ]; then
+            MSG="chore: ✅ ALL DONE ${DONE}/${TOTAL} [run #${{ github.run_number }}]"
+          elif [ "$TIMEDOUT" = "True" ]; then
+            MSG="chore: ⏸️ progress ${DONE}/${TOTAL} → auto-resume [run #${{ github.run_number }}]"
+          else
+            MSG="chore: progress ${DONE}/${TOTAL} [run #${{ github.run_number }}]"
+          fi
+
+          git pull --rebase origin ${{ github.ref_name }} 2>/dev/null || true
+          git commit -m "$MSG"
+          git push
+
+          if [ "$TIMEDOUT" = "True" ] && [ "$ALL_DONE" = "False" ]; then
+            echo ""
+            echo "✅ progress.json pushed — GitHub will auto-trigger next run"
+            echo "   (push: paths: ['progress.json'] trigger fires automatically)"
+          elif [ "$ALL_DONE" = "True" ]; then
+            echo ""
+            echo "🎉 All episodes done — no further runs needed"
+          fi
