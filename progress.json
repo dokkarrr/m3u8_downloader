@@ -10,9 +10,9 @@
     "https://rrr.megaup.cc/plgv/v5/bHKUod1G9wxOlygxw45VftX1_uqFvh2aLh9Jm3hAeY2F8Yqh1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9V1Iuaqk6odDcZ8y0V/list.m3u8"
   ],
   "failed_urls": [],
-  "total_runs": 2,
-  "last_run": "2026-05-10T16:15:01.393401+00:00",
-  "completed": false,
-  "remaining_count": -5,
+  "total_runs": 3,
+  "last_run": "2026-05-10T16:19:43.523659+00:00",
+  "completed": true,
+  "remaining_count": 0,
   "timed_out": false
 }
