@@ -1,0 +1,10 @@
+# ── Core HTTP ─────────────────────────────────────────────────────────────────
+requests>=2.31.0
+urllib3>=2.0.0
+
+# ── AES-128 Decryption (choose one — pycryptodome preferred) ──────────────────
+pycryptodome>=3.20.0        # provides Crypto.Cipher.AES  (recommended)
+# cryptography>=42.0.0      # fallback — uncomment if pycryptodome unavailable
+
+# ── Optional: auto-inject browser cookies ────────────────────────────────────
+# browser-cookie3>=0.19.1   # uncomment if using --cookies-from-browser flag
