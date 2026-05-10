@@ -1,0 +1,17 @@
+#EXTM3U
+#EXTVLCOPT:http-referrer=https://megaup.cc/
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles1",NAME="English (AI)",DEFAULT=YES,URI="https://lgv.megaup.cc/v5/bHKUod1G9wxOlygxw45VftX1_uqFvh2aLh9Jm3hAeY2F8Yqh1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9V1Iuaqk6odDcZ8y0V/subs/ai_eng_3.vtt"
+#EXTINF:-1,One Piece - 001 - I'm Luffy! The Man Who's Gonna Be King of the Pirates!.m3u8 [Dub & S-Sub - Server 2]
+https://rrr.megaup.cc/plgv/v5/bHKUod1G9wxOlygxw45VftX1_uqFvh2aLh9Jm3hAeY2F8Yqh1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9V1Iuaqk6odDcZ8y0V/list.m3u8
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles2",NAME="English (AI)",DEFAULT=YES,URI="https://e28.megaup.cc/v5/bHKUod1G9wxOlygxw5IkQp3gn5KY-k2nBycxohUcINCB8bPRnxlFKs6xGkJG5nmAq3XD-sJPhId4rdRcHsHtX6xPOmkzQfAaSvnDzn_B7iLZ-CAnOyAaD9ScE1s-M6UaqciMcrWAV4A/subs/ai_eng_3.vtt"
+#EXTINF:-1,One Piece - 002 - Enter the Great Swordsman! Pirate Hunter Roronoa Zoro!.m3u8 [Dub & S-Sub - Server 2]
+https://rrr.megaup.cc/pe28/v5/bHKUod1G9wxOlygxw5IkQp3gn5KY-k2nBycxohUcINCB8bPRnxlFKs6xGkJG5nmAq3XD-sJPhId4rdRcHsHtX6xPOmkzQfAaSvnDzn_B7iLZ-CAnOyAaD9ScE1s-M6UaqciMcrWAV4A/list.m3u8
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles3",NAME="English (AI)",DEFAULT=YES,URI="https://xm8.megaup.cc/v5/bHKUod1G9wxOlygxw5pVftX1_uqFvh2aMh5d93gRJancwaah1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9B3sWaqk6odDcZ8y0V/subs/ai_eng_3.vtt"
+#EXTINF:-1,One Piece - 003 - Morgan vs. Luffy! Who's the Mysterious Pretty Girl?.m3u8 [Dub & S-Sub - Server 2]
+https://rrr.megaup.cc/pxm8/v5/bHKUod1G9wxOlygxw5pVftX1_uqFvh2aMh5d93gRJancwaah1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9B3sWaqk6odDcZ8y0V/list.m3u8
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles4",NAME="English (AI)",DEFAULT=YES,URI="https://rjp.megaup.cc/v5/bHKUod1G9wxOlygxw55VftX1_uqFvh2aLh49_3gcJMWg0Yqh1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9L2Y2aqk6odDcZ8y0V/subs/ai_eng_3.vtt"
+#EXTINF:-1,One Piece - 004 - Luffy's Past! Enter Red-Haired Shanks!.m3u8 [Dub & S-Sub - Server 2]
+https://rrr.megaup.cc/prjp/v5/bHKUod1G9wxOlygxw55VftX1_uqFvh2aLh49_3gcJMWg0Yqh1zw1FtKhO04S3kmYq0nz4upPpIcg4fRsFt2lH4B7QhFLOYhiEoHX-ied7hOZ2Cg_azVCU8S9L2Y2aqk6odDcZ8y0V/list.m3u8
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitles5",NAME="English (AI)",DEFAULT=YES,URI="https://p36.megaup.cc/v5/bHKUod1G9wxOlygxw5IgQp3gn5KY-k2nBncxslUceInM9Y-BnxlFKs6xGkJG5nmAq3XD-sJPhId4rdRcHsHtX6xPOmkzQfAaSvnDzn_B7iLZ-CAnOyAaD9ScEw86C6UaqciMcrWAV4A/subs/ai_eng_3.vtt"
+#EXTINF:-1,One Piece - 005 - A Terrifying Mysterious Power! Captain Buggy, the Clown Pirate!.m3u8 [Dub & S-Sub - Server 2]
+https://rrr.megaup.cc/pp36/v5/bHKUod1G9wxOlygxw5IgQp3gn5KY-k2nBncxslUceInM9Y-BnxlFKs6xGkJG5nmAq3XD-sJPhId4rdRcHsHtX6xPOmkzQfAaSvnDzn_B7iLZ-CAnOyAaD9ScEw86C6UaqciMcrWAV4A/list.m3u8
